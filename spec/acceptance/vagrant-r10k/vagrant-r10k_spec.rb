@@ -17,14 +17,10 @@ shared_examples 'provider/vagrant-r10k' do |provider, options|
   let(:box_ip) { '10.10.10.29' }
   let(:name)   { 'single.testbox.spec' }
 
-  before do
-    assert_execute('vagrant', 'box', 'add', "vagrantr10kspec", options[:box])
-    ENV['VAGRANT_DEFAULT_PROVIDER'] = provider
-  end
-
   describe 'configured correctly' do
     before do
       environment.skeleton('correct')
+      ENV['VAGRANT_DEFAULT_PROVIDER'] = provider
     end
     after do
       assert_execute("vagrant", "destroy", "--force", log: false)
@@ -32,22 +28,32 @@ shared_examples 'provider/vagrant-r10k' do |provider, options|
 
     it 'deploys Puppetfile modules' do
       status("Test: vagrant up")
+      # moved from before
+      assert_execute('vagrant', 'box', 'add', "vagrantr10kspec", options[:box])
+      assert_execute('vagrant', 'box', 'list', '-i')
+      # moved from before
       up_result = assert_execute('vagrant', 'up', "--provider=#{provider}")
       ensure_successful_run(up_result, environment.workdir)
+      # TODO: DEBUG CODE
+      puts "=== STDOUT ==="
+      puts up_result.stdout
+      puts "=== STDERR ==="
+      puts up_result.stderr
+      puts "=== END STDERR ==="
+      # END DEBUG
+    end
 
-      status("Test: reviewboard module")
-      rb_dir = File.join(environment.workdir, 'puppet', 'modules', 'reviewboard')
-      expect(File.directory?(rb_dir)).to be_truthy
-      rb_result = assert_execute('bash', 'gitcheck.sh', 'puppet/modules/reviewboard')
-      expect(rb_result).to exit_with(0)
-      expect(rb_result.stdout).to match(/tag: v1\.0\.1 @ cdb8d7a186846b49326cec1cfb4623bd77529b04 \(origin: https:\/\/github\.com\/jantman\/puppet-reviewboard\.git\)/)
-      
-      status("Test: nodemeister module")
-      nm_dir = File.join(environment.workdir, 'puppet', 'modules', 'nodemeister')
-      expect(File.directory?(nm_dir)).to be_truthy
-      nm_result = assert_execute('bash', 'gitcheck.sh', 'puppet/modules/nodemeister')
-      expect(nm_result).to exit_with(0)
-      expect(nm_result.stdout).to match(/tag: 0\.1\.0 @ 3a504b5f66ebe1853bda4ee065fce18118958d84 \(origin: https:\/\/github\.com\/jantman\/puppet-nodemeister\.git\)/)
+    it 'hooks in the right order' do
+      status("Test: vagrant up --debug")
+      up_result = assert_execute('vagrant', 'up', "--provider=#{provider}", '--debug')
+      ensure_successful_run(up_result, environment.workdir)
+      # TODO: DEBUG CODE
+      puts "=== STDOUT ==="
+      puts up_result.stdout
+      puts "=== STDERR ==="
+      puts up_result.stderr
+      puts "=== END STDERR ==="
+      # END DEBUG
     end
   end
 
@@ -118,11 +124,26 @@ shared_examples 'provider/vagrant-r10k' do |provider, options|
   # checks for a successful up run with r10k deployment and puppet provisioning
   def ensure_successful_run(up_result, workdir)
     expect(up_result).to exit_with(0)
+    # TODO #9 - expect(up_result.stdout.scan("string here").size).to eq(1)
     expect(up_result.stdout).to include('vagrant-r10k: Building the r10k module path with puppet provisioner module_path "puppet/modules"')
     expect(up_result.stdout).to include("vagrant-r10k: Beginning r10k deploy of puppet modules into #{workdir}/puppet/modules using #{workdir}/puppet/Puppetfile")
     expect(up_result.stdout).to include('vagrant-r10k: Deploy finished')
     expect(up_result.stderr).to match(/^$/)
     ensure_puppet_ran(up_result)
+
+    status("Test: reviewboard module")
+    rb_dir = File.join(workdir, 'puppet', 'modules', 'reviewboard')
+    expect(File.directory?(rb_dir)).to be_truthy
+    rb_result = assert_execute('bash', 'gitcheck.sh', 'puppet/modules/reviewboard')
+    expect(rb_result).to exit_with(0)
+    expect(rb_result.stdout).to match(/tag: v1\.0\.1 @ cdb8d7a186846b49326cec1cfb4623bd77529b04 \(origin: https:\/\/github\.com\/jantman\/puppet-reviewboard\.git\)/)
+
+    status("Test: nodemeister module")
+    nm_dir = File.join(workdir, 'puppet', 'modules', 'nodemeister')
+    expect(File.directory?(nm_dir)).to be_truthy
+    nm_result = assert_execute('bash', 'gitcheck.sh', 'puppet/modules/nodemeister')
+    expect(nm_result).to exit_with(0)
+    expect(nm_result.stdout).to match(/tag: 0\.1\.0 @ 3a504b5f66ebe1853bda4ee065fce18118958d84 \(origin: https:\/\/github\.com\/jantman\/puppet-nodemeister\.git\)/)
   end
 
   # ensure that the puppet provisioner ran with default.pp

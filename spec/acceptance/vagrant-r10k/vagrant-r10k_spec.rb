@@ -17,10 +17,18 @@ shared_examples 'provider/vagrant-r10k' do |provider, options|
   let(:box_ip) { '10.10.10.29' }
   let(:name)   { 'single.testbox.spec' }
 
+  before do
+      ENV['VAGRANT_DEFAULT_PROVIDER'] = provider
+      assert_execute('vagrant', 'box', 'add', "vagrantr10kspec", options[:box])
+  end
+
+  after do
+    assert_execute('vagrant', 'box', 'remove', "vagrantr10kspec", '-f')
+  end
+
   describe 'configured correctly' do
     before do
       environment.skeleton('correct')
-      ENV['VAGRANT_DEFAULT_PROVIDER'] = provider
     end
     after do
       assert_execute("vagrant", "destroy", "--force", log: false)
@@ -28,10 +36,6 @@ shared_examples 'provider/vagrant-r10k' do |provider, options|
 
     it 'deploys Puppetfile modules' do
       status("Test: vagrant up")
-      # moved from before
-      assert_execute('vagrant', 'box', 'add', "vagrantr10kspec", options[:box])
-      assert_execute('vagrant', 'box', 'list', '-i')
-      # moved from before
       up_result = assert_execute('vagrant', 'up', "--provider=#{provider}")
       ensure_successful_run(up_result, environment.workdir)
       # TODO: DEBUG CODE

@@ -10,6 +10,8 @@ import shutil
 import commands
 from copy import deepcopy
 
+out_dir = 'acceptance_results'
+
 def get_du(path):
     """get disk usage for a given path"""
     cmd = 'df %s | grep -v "^File" | head -1 | awk \'{print $3}\'' % path
@@ -105,7 +107,7 @@ def do_test(num, testcmd):
     data = {'num': num}
 
     # output path and command to execute
-    outfile = 'acceptance_results/do_test_{n}.out'.format(n=num)
+    outfile = '{o}/do_test_{n}.out'.format(n=num, o=out_dir)
     data['outfile'] = outfile
     cmd = testcmd + ' 2>&1 | tee ' + outfile + ' ; ( exit ${PIPESTATUS[0]} )'
 
@@ -137,19 +139,20 @@ def do_test(num, testcmd):
     
     # JUnit
     if os.path.exists('results.xml'):
-        fpath = 'acceptance_results/results_{n}.xml'.format(n=num)
+        fpath = '{o}/results_{n}.xml'.format(n=num, o=out_dir)
         shutil.move('results.xml', fpath)
         data['junit'] = parse_junit(fpath)
         data['junit_path'] = fpath
 
-    json_path = 'acceptance_results/data_{n}.json'.format(n=num)
+    json_path = '{o}/data_{n}.json'.format(n=num, o=out_dir)
     with open(json_path, 'w') as fh:
         fh.write(json.dumps(data))
     print("\tData written to: {j}".format(j=json_path))
 
-if not os.path.exists('acceptance_results'):
-    os.mkdir('acceptance_results')
+if __name__ == "__main__":
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
 
-for i in range(0, 100):
-    print(">>>> Doing test {i}".format(i=i))
-    do_test(i, 'bundle exec rake --trace acceptance:virtualbox')
+    for i in range(1, 2):
+        print(">>>> Doing test {i}".format(i=i))
+        do_test(i, 'bundle exec rake --trace acceptance:virtualbox')

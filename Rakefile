@@ -74,8 +74,11 @@ namespace :acceptance do
       provider = task.name.split(':')[1]
       puts "Running acceptance tests for #{provider}"
       box_path = get_box_path(provider)
-      system_or_die("VS_PROVIDER=#{provider} VS_BOX_PATH=#{box_path} TMPDIR=#{tmp_dir_path} bundle exec vagrant-spec test")
+      #system_or_die("VS_PROVIDER=#{provider} VS_BOX_PATH=#{box_path} TMPDIR=#{tmp_dir_path} bundle exec vagrant-spec test")
+      system_or_die("VS_PROVIDER=#{provider} VS_BOX_PATH=#{box_path} bundle exec vagrant-spec test")
       fix_results_xml()
+      # for https://github.com/mitchellh/vagrant-spec/issues/15
+      system("rm -Rf /tmp/vagrant-r10k-spec/*")
     end
   end
 end
